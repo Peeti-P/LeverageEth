@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.6;
 
 interface Comptroller{
@@ -48,38 +46,51 @@ interface EthPriceFeed {
     function getUnderlyingPrice(CEth) external view returns (uint);
 }
 
+/**
+* @title LeverageETH contract
+* @notice Smart Contract for leverage ETH position by 0-70%
+* @author Peeti
+ **/
 
-contract LeveragePls {
+contract LeverageETH {
     // Address of the deployed contracts on Ropsten Testnet
     address uniswap_rounter_address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address cDai_address = 0xbc689667C13FB2a04f09272753760E38a95B998C;
     address cEth_adress = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     address dai_address = 0x31F42841c2db5173425b5223809CF3A38FEde360;
-    uint borrow_amount;
-    uint account_liquidity;
+    
+    // Interface of the contracts
     uniswapRounter uniswap_interface = uniswapRounter(uniswap_rounter_address);
     Comptroller comp_interface = Comptroller(0xcfa7b0e37f5AC60f3ae25226F5e39ec59AD26152);
     EthPriceFeed oracle_interface = EthPriceFeed(0x7BBF806F69ea21Ea9B8Af061AD0C1c41913063A1);
     Erc20 Dai_interface = Erc20(dai_address);
     CEth Ceth_interface = CEth(cEth_adress);
     CErc20 cDai_interface = CErc20(cDai_address);
+    // To record loan amount
+    uint borrow_amount;
 
-
-    function openPosition() 
+    /**
+    * @dev Open the Leveraged Position 
+    * @param _leverageAmount the leverage amount (0-70%)
+    **/
+    function openPosition(uint _leverageAmount) 
         public 
         payable 
         returns (bool) {
+        require(_leverageAmount > 0 && _leverageAmount <= 70, "Please input leverageAmount (0-70%)" );
         uint contributeAmount = msg.value;
         uint EthPrice = EthpriceOracle();
-        borrow_amount = ((EthPrice*contributeAmount)/2);
+        borrow_amount = ((EthPrice*contributeAmount)*_leverageAmount/100);
         Ceth_interface.mint{value: contributeAmount, gas: 300000 }();
         enterMarket();
-        // account_liquidity = getAccountLiquidity();
         borrowDai(borrow_amount);
         daiToEth(borrow_amount);
         return true;
     }
 
+    /**
+    * @dev Close the Leverage Position 
+    **/
     function closePosition()
         public {
         uint exchangeRate = currentExchangeRate();
@@ -87,21 +98,35 @@ contract LeveragePls {
         uint EthPrice = EthpriceOracle();
         uint liquidity;
         uint redeemable_amount;
+
+        // Transform Ethereum to Dai via UniswapRounter
         ethToDai(address(this).balance);
         uint dai_balance = Dai_interface.balanceOf(address(this));
+
+        // Check whether we can repay the loan amount in full or not
         if (dai_balance > borrow_amount){
+            // repay in full
             repayDai(borrow_amount);
         }else{
+            // partial repay
             repayDai(dai_balance);
         }
-        // repayDai(Dai_interface.balanceOf(address(this)));
         liquidity = getAccountLiquidity();
+
+        // Calculate amount of cETH we can retrieve back
         redeemable_amount = (liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
+
+        //Redeem cETH to ETH
         redeemCEth(redeemable_amount);
+
+        // Check if we get some profit or not (i.e. remaning dai after repay debt)
         dai_balance = Dai_interface.balanceOf(address(this));
         if (dai_balance > 0){
+            //transfer from Dai to Eth
             daiToEth(dai_balance);
         }
+
+        // Send Money Back to the User
         sendMoneyBack();
     }
 
