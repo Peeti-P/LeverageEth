@@ -145,9 +145,9 @@ contract LeverageETH {
     /**
     * @dev ETH Price Oracle provided by Compound on the Ropsten testnet (in USD)
     **/
-    function EthpriceOracle() public view returns 
-        (
-        uint)
+    function EthpriceOracle() public view returns (
+        uint
+        )
         {
         return oracle_interface.getUnderlyingPrice(Ceth_interface)/(10**18);
     }
@@ -167,7 +167,9 @@ contract LeverageETH {
     * @dev Redeem cETH for ETH
     * @param _amount amount of cETH to be redeemed
     **/
-    function redeemCEth(uint _amount) 
+    function redeemCEth(
+        uint _amount
+        ) 
         public 
         returns (bool) 
         {
@@ -180,7 +182,8 @@ contract LeverageETH {
     * @param _borrowAmount amount of Dai to be borrowed
     **/
     function borrowDai(
-        uint _borrowAmount) 
+        uint _borrowAmount
+        ) 
         public 
         payable {
         cDai_interface.borrow(_borrowAmount);
@@ -194,7 +197,6 @@ contract LeverageETH {
         view 
         returns (uint)
         {
-        // Comptroller comp = Comptroller(comptroller_address);
         (uint error, uint liquidity, uint shortfall) = comp_interface.getAccountLiquidity(address(this));
         return liquidity;
     }
@@ -216,7 +218,8 @@ contract LeverageETH {
     * @param _to recipient address
     **/
     function sendViaCall(
-        address payable _to) 
+        address payable _to
+        ) 
         public 
         payable 
         {
@@ -249,7 +252,9 @@ contract LeverageETH {
     * @dev repay dai in a specific amount
     * @param _amount amount of dai to be repaid in Compound
     **/
-    function repayDai(uint _amount) 
+    function repayDai(
+        uint _amount
+        ) 
         public 
         {
         Dai_interface.approve(cDai_address, Dai_interface.balanceOf(address(this)));
@@ -260,7 +265,9 @@ contract LeverageETH {
     * @dev swap dai to ETH via Uniswaprounter
     * @param _amount amount of Dai to be transformed to Eth
     **/
-    function daiToEth(uint _amount) 
+    function daiToEth(
+        uint _amount
+        ) 
         public 
         {
         require(Dai_interface.approve(address(uniswap_rounter_address), Dai_interface.balanceOf(address(this))), "approve failed.");
