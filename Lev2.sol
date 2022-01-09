@@ -56,6 +56,7 @@ contract LeveragePls {
     address cEth_adress = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     address dai_address = 0x31F42841c2db5173425b5223809CF3A38FEde360;
     uint borrow_amount;
+    uint account_liquidity;
     uniswapRounter uniswap_interface = uniswapRounter(uniswap_rounter_address);
     Comptroller comp_interface = Comptroller(0xcfa7b0e37f5AC60f3ae25226F5e39ec59AD26152);
     EthPriceFeed oracle_interface = EthPriceFeed(0x7BBF806F69ea21Ea9B8Af061AD0C1c41913063A1);
@@ -73,6 +74,7 @@ contract LeveragePls {
         borrow_amount = ((EthPrice*contributeAmount)/2);
         Ceth_interface.mint{value: contributeAmount, gas: 300000 }();
         enterMarket();
+        account_liquidity = getAccountLiquidity();
         borrowDai(borrow_amount);
         daiToEth(borrow_amount);
         return true;
@@ -81,10 +83,10 @@ contract LeveragePls {
     function closePosition()
         public {
         uint exchangeRate = currentExchangeRate();
-        uint liquidity = getAccountLiquidity();
-        uint collateralFactor = cEthCollateralFactor()+(5*(10**15));
+        // uint liquidity = getAccountLiquidity();
+        uint collateralFactor = cEthCollateralFactor()+(5*(10**14));
         uint EthPrice = EthpriceOracle();
-        uint redeemable_amount = (liquidity*exchangeRate)/(collateralFactor*EthPrice*(10**36));
+        uint redeemable_amount = (account_liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
         ethToDai(address(this).balance);
         repayDai(Dai_interface.balanceOf(address(this)));
         redeemCEth(redeemable_amount);
@@ -113,15 +115,6 @@ contract LeveragePls {
     
     //1000000000000000 wei or 0.01 eth or -> 0.1 usd
     //0x065eE5Dfc2Ced07dD49DaCB7849cE2F84EaABA0E wallet address
-
-    // function redeemCEth_all() 
-    //     public 
-    //     returns (bool) 
-    //     {
-    //     uint Ctoken_amount = Ceth_interface.balanceOf(address(this));
-    //     require(Ceth_interface.redeem(Ctoken_amount) == 0, "Something went wrong");
-    //     return true;
-    // }
 
     function redeemCEth(uint _amount) 
         public 
