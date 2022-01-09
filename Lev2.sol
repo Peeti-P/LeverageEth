@@ -88,10 +88,21 @@ contract LeveragePls {
         uint liquidity;
         uint redeemable_amount;
         ethToDai(address(this).balance);
-        repayDai(Dai_interface.balanceOf(address(this)));
+        uint dai_balance = Dai_interface.balanceOf(address(this));
+        if (dai_balance > borrow_amount){
+            repayDai(borrow_amount);
+        }else{
+            repayDai(dai_balance);
+        }
+        // repayDai(Dai_interface.balanceOf(address(this)));
         liquidity = getAccountLiquidity();
         redeemable_amount = (liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
         redeemCEth(redeemable_amount);
+        dai_balance = Dai_interface.balanceOf(address(this));
+        if (dai_balance > 0){
+            daiToEth(dai_balance);
+        }
+        sendMoneyBack();
     }
 
     function check_redeemable()
@@ -142,12 +153,10 @@ contract LeveragePls {
         public 
         returns (bool) 
         {
-        // uint Ctoken_amount = Ceth_interface.balanceOf(address(this));
         require(Ceth_interface.redeem(_amount) == 0, "Something went wrong");
         return true;
     }
 
-    // borrow 1000000000000000000 or 1 Dai
     function borrowDai(
         uint _borrowAmount) 
         public 
