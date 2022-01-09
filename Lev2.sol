@@ -74,7 +74,7 @@ contract LeveragePls {
         borrow_amount = ((EthPrice*contributeAmount)/2);
         Ceth_interface.mint{value: contributeAmount, gas: 300000 }();
         enterMarket();
-        account_liquidity = getAccountLiquidity();
+        // account_liquidity = getAccountLiquidity();
         borrowDai(borrow_amount);
         daiToEth(borrow_amount);
         return true;
@@ -83,19 +83,41 @@ contract LeveragePls {
     function closePosition()
         public {
         uint exchangeRate = currentExchangeRate();
-        // uint liquidity = getAccountLiquidity();
         uint collateralFactor = cEthCollateralFactor()+(5*(10**14));
         uint EthPrice = EthpriceOracle();
-        uint redeemable_amount = (account_liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
+        uint liquidity;
+        uint redeemable_amount;
         ethToDai(address(this).balance);
         repayDai(Dai_interface.balanceOf(address(this)));
+        liquidity = getAccountLiquidity();
+        redeemable_amount = (liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
         redeemCEth(redeemable_amount);
+    }
+
+    function check_redeemable()
+        public 
+        view 
+        returns(uint){
+        uint exchangeRate = currentExchangeRate();
+        uint collateralFactor = cEthCollateralFactor()+(5*(10**14));
+        uint EthPrice = EthpriceOracle();
+        uint liquidity;
+        uint redeemable_amount;
+        liquidity = getAccountLiquidity();
+        redeemable_amount = (liquidity*(10**36))/(collateralFactor*EthPrice*exchangeRate);
+        return redeemable_amount;
+    }
+
+    function cEthCollateralFactorAdj() public view returns (uint){
+        (bool temp_1, uint factor, bool temp_2) = comp_interface.markets(cEth_adress);
+        return factor+(5*(10**14));
     }
 
     function cEthCollateralFactor() public view returns (uint){
         (bool temp_1, uint factor, bool temp_2) = comp_interface.markets(cEth_adress);
         return factor;
     }
+
 
     function EthpriceOracle() public view returns 
         (
