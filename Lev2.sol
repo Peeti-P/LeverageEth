@@ -5,6 +5,7 @@ pragma solidity ^0.8.6;
 interface Comptroller{
     function getAccountLiquidity(address account) external view returns (uint, uint, uint);
     function enterMarkets(address[] memory cTokens) external returns (uint[] memory);
+    function markets(address) external view returns (bool, uint, bool);
 }
 
 interface Erc20 {
@@ -43,7 +44,6 @@ interface uniswapRounter {
     function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts);
 }
 
-//0x7BBF806F69ea21Ea9B8Af061AD0C1c41913063A1 price oracle contract
 interface EthPriceFeed {
     function getUnderlyingPrice(CEth) external view returns (uint);
 }
@@ -55,6 +55,7 @@ contract LeveragePls {
     address cDai_address = 0xbc689667C13FB2a04f09272753760E38a95B998C;
     address cEth_adress = 0x859e9d8a4edadfEDb5A2fF311243af80F85A91b8;
     address dai_address = 0x31F42841c2db5173425b5223809CF3A38FEde360;
+    uint borrow_amount;
     uniswapRounter uniswap_interface = uniswapRounter(uniswap_rounter_address);
     Comptroller comp_interface = Comptroller(0xcfa7b0e37f5AC60f3ae25226F5e39ec59AD26152);
     EthPriceFeed oracle_interface = EthPriceFeed(0x7BBF806F69ea21Ea9B8Af061AD0C1c41913063A1);
@@ -62,13 +63,14 @@ contract LeveragePls {
     CEth Ceth_interface = CEth(cEth_adress);
     CErc20 cDai_interface = CErc20(cDai_address);
 
+
     function openPosition() 
         public 
         payable 
         returns (bool) {
         uint contributeAmount = msg.value;
         uint EthPrice = EthpriceOracle();
-        uint borrow_amount = EthPrice*contributeAmount;
+        borrow_amount = ((EthPrice*contributeAmount)/2);
         Ceth_interface.mint{value: contributeAmount, gas: 300000 }();
         enterMarket();
         borrowDai(borrow_amount);
@@ -76,26 +78,43 @@ contract LeveragePls {
         return true;
     }
 
+    function closePosition()
+        public {
+        uint exchangeRate = currentExchangeRate();
+        uint liquidity = getAccountLiquidity();
+        uint collateralFactor = cEthCollateralFactor()+(5*(10**15));
+        uint EthPrice = EthpriceOracle();
+        uint redeemable_amount = (liquidity*exchangeRate)/(collateralFactor*EthPrice*(10**36));
+        ethToDai(address(this).balance);
+        repayDai(Dai_interface.balanceOf(address(this)));
+        redeemCEth(redeemable_amount);
+    }
+
+    function cEthCollateralFactor() public view returns (uint){
+        (bool temp_1, uint factor, bool temp_2) = comp_interface.markets(cEth_adress);
+        return factor;
+    }
+
     function EthpriceOracle() public view returns 
         (
         uint)
-    {
+        {
         return oracle_interface.getUnderlyingPrice(Ceth_interface)/(10**18);
     }
 
-    // function supplyEthToCompound()
-    //     public
-    //     payable
-    //     returns (bool) {
-    //     // Mint CEth
-    //     Ceth_interface.mint{value: msg.value, gas: 300000 }();
-    //     return true;
-    // }
+    function supplyEthToCompound()
+        public
+        payable
+        returns (bool) {
+        // Mint CEth
+        Ceth_interface.mint{value: msg.value, gas: 300000 }();
+        return true;
+    }
     
     //1000000000000000 wei or 0.01 eth or -> 0.1 usd
     //0x065eE5Dfc2Ced07dD49DaCB7849cE2F84EaABA0E wallet address
 
-    // function redeemCEth() 
+    // function redeemCEth_all() 
     //     public 
     //     returns (bool) 
     //     {
@@ -118,28 +137,28 @@ contract LeveragePls {
         uint _borrowAmount) 
         public 
         payable {
-        require(cDai_interface.borrow(_borrowAmount) == 0, "got collateral?");
+        cDai_interface.borrow(_borrowAmount);
     }
 
     function getAccountLiquidity() 
         public
         view 
-        returns (uint, uint, uint)
+        returns (uint)
         {
         // Comptroller comp = Comptroller(comptroller_address);
         (uint error, uint liquidity, uint shortfall) = comp_interface.getAccountLiquidity(address(this));
-        return (error, liquidity, shortfall);
+        return liquidity;
     }
 
-    function currentEth() 
+    function currentExchangeRate() 
         public 
         view 
         returns(uint)
         {
-        uint amount_temp = (Ceth_interface.exchangeRateStored() * Ceth_interface.balanceOf(address(this)))/10**18;
+        uint amount_temp = (Ceth_interface.exchangeRateStored());
         return amount_temp;
     }
-
+    
     function sendViaCall(
         address payable _to
         ) 
