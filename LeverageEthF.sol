@@ -258,7 +258,7 @@ contract LeverageETH {
 
     /**
     * @dev swap dai to ETH via Uniswaprounter
-    * @param _amount recipient address
+    * @param _amount amount of Dai to be transformed to Eth
     **/
     function daiToEth(uint _amount) 
         public 
@@ -270,6 +270,10 @@ contract LeverageETH {
         uniswap_interface.swapExactTokensForETH(_amount, 0, path, address(this), block.timestamp);
     }
 
+    /**
+    * @dev swap dai to ETH via Uniswaprounter
+    * @param _amount amount of Eth to be transformed to Dai
+    **/   
     function ethToDai(uint _amount) public {
         require(Dai_interface.approve(address(uniswap_rounter_address), Dai_interface.balanceOf(address(this))), "approve failed.");
         address[] memory path = new address[](2);
