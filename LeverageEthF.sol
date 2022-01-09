@@ -77,7 +77,7 @@ contract LeverageETH {
         public 
         payable 
         returns (bool) {
-        require(_leverageAmount > 0 && _leverageAmount <= 70, "Please input leverageAmount (0-70%)" );
+        require(_leverageAmount > 0 && _leverageAmount <= 70, "Please input leverage amount between 0-70 (%)" );
         uint contributeAmount = msg.value;
         uint EthPrice = EthpriceOracle();
         borrow_amount = ((EthPrice*contributeAmount)*_leverageAmount/100);
@@ -120,6 +120,7 @@ contract LeverageETH {
         redeemCEth(redeemable_amount);
 
         // Check if we get some profit or not (i.e. remaning dai after repay debt)
+        // Becuase the mismatch of the price between Compound and Uniswap, we have to swap two times
         dai_balance = Dai_interface.balanceOf(address(this));
         if (dai_balance > 0){
             //transfer from Dai to Eth
@@ -274,6 +275,7 @@ contract LeverageETH {
         address[] memory path = new address[](2);
         path[0] = address(dai_address);
         path[1] = uniswap_interface.WETH();
+        // set minimum recive to 0 becuase uniswap on testnet has a huge price impact
         uniswap_interface.swapExactTokensForETH(_amount, 0, path, address(this), block.timestamp);
     }
 
@@ -286,6 +288,7 @@ contract LeverageETH {
         address[] memory path = new address[](2);
         path[0] = uniswap_interface.WETH();
         path[1] = address(dai_address);
+        // set minimum recive to 0 becuase uniswap on testnet has a huge price impact
         uniswap_interface.swapExactETHForTokens{value: _amount }(0, path, address(this), block.timestamp);
     }
 
